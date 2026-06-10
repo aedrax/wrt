@@ -80,8 +80,16 @@ func main() {
 
 	var rc int
 	switch cmd {
+	case "list":
+		rc = app.CmdList(args)
 	case "version":
 		fmt.Println(version)
+	case "_branches":
+		// Hidden: used by the shell tab-completions.
+		rc = app.CmdBranches(args)
+	case "_worktrees":
+		// Hidden: used by the shell tab-completions.
+		rc = app.CmdWorktrees(args)
 	case "help":
 		fmt.Print(helpText)
 	default:
@@ -92,6 +100,5 @@ func main() {
 		}
 	}
 
-	_ = args
 	os.Exit(rc)
 }
