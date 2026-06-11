@@ -80,6 +80,8 @@ func main() {
 
 	var rc int
 	switch cmd {
+	case "clone":
+		rc = app.CmdClone(args)
 	case "list":
 		rc = app.CmdList(args)
 	case "version":
