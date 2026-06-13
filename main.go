@@ -14,7 +14,7 @@ Usage: wrt [options] <command> [args...]
 Commands:
   clone  <url> <name>    Clone as a bare repo ready for worktrees
   switch <branch>        Create/switch to a worktree (auto-cd)
-  remove <branch>        Safely remove worktree, deinit submodules, delete merged branch
+  remove [-f|--force] <branch>  Safely remove worktree, deinit submodules, delete merged branch
   list                   List all active worktrees
   init   [shell]         Print shell integration code (bash, zsh, fish) or install with --install
   version                Print the installed wrt version

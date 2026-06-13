@@ -131,6 +131,15 @@ func (a *App) SetCDTarget(path string) error {
 	return nil
 }
 
+// PromptConfirm asks the user to confirm a destructive operation.
+func (a *App) PromptConfirm(prompt string) bool {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Fprintf(os.Stderr, "%s [y/N] ", prompt)
+	ans, _ := reader.ReadString('\n')
+	ans = strings.TrimSpace(ans)
+	return ans == "y" || ans == "Y"
+}
+
 // GetRoot finds the project root (the parent of the common .git directory).
 // Works from any worktree or the bare repo itself.
 func (a *App) GetRoot() (string, error) {

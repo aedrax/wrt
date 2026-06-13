@@ -11,11 +11,27 @@ import (
 // the worktree (force if necessary), and attempts to delete the branch if
 // it is fully merged.
 func (a *App) CmdRemove(args []string) int {
-	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "Usage: wrt remove <branch_name>")
+	force := false
+	cleanArgs := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "-f", "--force":
+			force = true
+		case "--":
+			if i+1 < len(args) {
+				cleanArgs = append(cleanArgs, args[i+1:]...)
+			}
+			i = len(args)
+		default:
+			cleanArgs = append(cleanArgs, args[i])
+		}
+	}
+
+	if len(cleanArgs) < 1 {
+		fmt.Fprintln(os.Stderr, "Usage: wrt remove [-f|--force] <branch_name>")
 		return 1
 	}
-	branch := args[0]
+	branch := cleanArgs[0]
 
 	root, wtPath, err := a.ResolveWorktree(branch)
 	if err != nil {
@@ -41,6 +57,20 @@ func (a *App) CmdRemove(args []string) int {
 	}
 
 	info(fmt.Sprintf("Cleaning up worktree: %s...", branch))
+
+	if !force {
+		if out, err := a.RunCmdOutputIn(wtPath, "git", "status", "--porcelain", "--untracked-files=all"); err == nil {
+			if out != "" {
+				warn(fmt.Sprintf("Worktree '%s' has untracked or modified files:\n%s", branch, out))
+				if !a.PromptConfirm("Remove this worktree anyway?") {
+					info("Canceled.")
+					return 1
+				}
+			}
+		} else {
+			warn(fmt.Sprintf("unable to check worktree cleanliness: %v", err))
+		}
+	}
 
 	// 1. Safely de-initialize submodules.
 	if _, err := os.Stat(filepath.Join(wtPath, ".git")); err == nil {
