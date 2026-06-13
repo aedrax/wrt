@@ -208,6 +208,21 @@ func (a *App) IsRegisteredWorktree(path string) bool {
 	return false
 }
 
+// BranchFullyMerged reports whether branch is fully merged into the current
+// HEAD branch.
+func (a *App) BranchFullyMerged(dir, branch string) (bool, error) {
+	out, err := a.RunCmdOutputIn(dir, "git", "branch", "--merged")
+	if err != nil {
+		return false, err
+	}
+	for _, line := range strings.Split(out, "\n") {
+		if strings.TrimSpace(strings.TrimPrefix(line, "* ")) == branch {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // resolvePath returns the symlink-resolved absolute path, falling back to
 // the input on failure.
 func resolvePath(path string) string {

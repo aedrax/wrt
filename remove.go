@@ -59,16 +59,33 @@ func (a *App) CmdRemove(args []string) int {
 	info(fmt.Sprintf("Cleaning up worktree: %s...", branch))
 
 	if !force {
+		dirtyReason := ""
 		if out, err := a.RunCmdOutputIn(wtPath, "git", "status", "--porcelain", "--untracked-files=all"); err == nil {
 			if out != "" {
-				warn(fmt.Sprintf("Worktree '%s' has untracked or modified files:\n%s", branch, out))
-				if !a.PromptConfirm("Remove this worktree anyway?") {
-					info("Canceled.")
-					return 1
-				}
+				dirtyReason = fmt.Sprintf("Worktree '%s' has untracked or modified files:\n%s", branch, out)
 			}
 		} else {
 			warn(fmt.Sprintf("unable to check worktree cleanliness: %v", err))
+		}
+
+		notMerged := false
+		if merged, err := a.BranchFullyMerged(root, branch); err == nil {
+			notMerged = !merged
+		} else {
+			warn(fmt.Sprintf("unable to check branch merge status: %v", err))
+		}
+
+		if dirtyReason != "" || notMerged {
+			if dirtyReason != "" {
+				warn(dirtyReason)
+			}
+			if notMerged {
+				warn(fmt.Sprintf("Branch '%s' is not fully merged into HEAD.", branch))
+			}
+			if !a.PromptConfirm("Remove this worktree anyway?") {
+				info("Canceled.")
+				return 1
+			}
 		}
 	}
 
