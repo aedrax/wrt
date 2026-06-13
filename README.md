@@ -34,6 +34,14 @@ That produces an executable named `wrt` in the current directory.
 
 After installing or building, run `wrt` from a Git repository root.
 
+Make sure to include the eval in your shell if you want tab completion and to automate changing directories on switch
+
+```bash
+wrt init --install
+```
+
+Regular usage is pretty straight forward
+
 ```bash
 wrt [command] [options]
 ```

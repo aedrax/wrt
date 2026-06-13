@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 // Bash / Zsh shell function + completions
@@ -79,7 +80,7 @@ _wrt_completions() {
             COMPREPLY=( $(compgen -W "$worktrees" -- "$cur") )
             ;;
         init)
-            COMPREPLY=( $(compgen -W "bash zsh fish" -- "$cur") )
+            COMPREPLY=( $(compgen -W "bash zsh fish --install" -- "$cur") )
             ;;
     esac
 }
@@ -130,6 +131,7 @@ _wrt() {
             compadd -a worktrees
             ;;
         init)
+            _arguments '--install[Install shell integration into config]'
             compadd bash zsh fish
             ;;
     esac
@@ -192,7 +194,111 @@ complete -c wrt -n '__fish_seen_subcommand_from remove' -f -a '(command wrt _wor
 
 # Shell names for "init".
 complete -c wrt -n '__fish_seen_subcommand_from init' -f -a 'bash zsh fish'
+complete -c wrt -n '__fish_seen_subcommand_from init' -l install -d 'Install shell integration to shell config'
 `
+
+func shellIntegrationCode(shell string) (string, error) {
+	switch shell {
+	case "bash":
+		return bashZshFunc + bashCompletions, nil
+	case "zsh":
+		return bashZshFunc + zshCompletions, nil
+	case "fish":
+		return fishFunc, nil
+	default:
+		if runtime.GOOS == "windows" {
+			return "", fmt.Errorf("shell integration is not supported on Windows; use bash/zsh/fish via WSL")
+		}
+		return "", fmt.Errorf("unknown shell %q : supported: bash, zsh, fish", shell)
+	}
+}
+
+func shellConfigPath(shell string) (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("could not determine home directory: %w", err)
+	}
+
+	switch shell {
+	case "bash":
+		bashrc := filepath.Join(home, ".bashrc")
+		bashProfile := filepath.Join(home, ".bash_profile")
+		if _, err := os.Stat(bashrc); err == nil {
+			return bashrc, nil
+		}
+		if _, err := os.Stat(bashProfile); err == nil {
+			return bashProfile, nil
+		}
+		return bashrc, nil
+	case "zsh":
+		return filepath.Join(home, ".zshrc"), nil
+	case "fish":
+		return filepath.Join(home, ".config", "fish", "config.fish"), nil
+	default:
+		if runtime.GOOS == "windows" {
+			return "", fmt.Errorf("shell integration is not supported on Windows; use bash/zsh/fish via WSL")
+		}
+		return "", fmt.Errorf("unknown shell %q : supported: bash, zsh, fish", shell)
+	}
+}
+
+func shellInstallLine(shell string) (string, error) {
+	switch shell {
+	case "bash", "zsh":
+		return `eval "$(wrt init)"`, nil
+	case "fish":
+		return `wrt init fish | source`, nil
+	default:
+		if runtime.GOOS == "windows" {
+			return "", fmt.Errorf("shell integration is not supported on Windows; use bash/zsh/fish via WSL")
+		}
+		return "", fmt.Errorf("unknown shell %q : supported: bash, zsh, fish", shell)
+	}
+}
+
+func installShellIntegration(shell string) int {
+	installLine, err := shellInstallLine(shell)
+	if err != nil {
+		errf("%v", err)
+		return 1
+	}
+
+	configPath, err := shellConfigPath(shell)
+	if err != nil {
+		errf("%v", err)
+		return 1
+	}
+
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
+		errf("failed to create config directory: %v", err)
+		return 1
+	}
+
+	existing, err := os.ReadFile(configPath)
+	if err != nil && !os.IsNotExist(err) {
+		errf("failed to read %s: %v", configPath, err)
+		return 1
+	}
+
+	if strings.Contains(string(existing), installLine) {
+		warn(fmt.Sprintf("wrt shell integration already installed in %s", configPath))
+		return 0
+	}
+
+	content := string(existing)
+	if content != "" && !strings.HasSuffix(content, "\n") {
+		content += "\n"
+	}
+	content += installLine + "\n"
+
+	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
+		errf("failed to write %s: %v", configPath, err)
+		return 1
+	}
+
+	success(fmt.Sprintf("Installed wrt shell integration to %s", configPath))
+	return 0
+}
 
 // CmdInit prints shell integration code (wrapper function + completions).
 
@@ -200,8 +306,18 @@ complete -c wrt -n '__fish_seen_subcommand_from init' -f -a 'bash zsh fish'
 // profile. Outputs the wrapper function AND tab-completion definitions.
 func (a *App) CmdInit(args []string) int {
 	shell := ""
-	if len(args) > 0 {
-		shell = args[0]
+	install := false
+	for _, arg := range args {
+		switch arg {
+		case "--install":
+			install = true
+		default:
+			if shell != "" {
+				errf("unexpected argument %q", arg)
+				return 1
+			}
+			shell = arg
+		}
 	}
 
 	// Auto-detect shell from $SHELL if not specified.
@@ -209,22 +325,15 @@ func (a *App) CmdInit(args []string) int {
 		shell = filepath.Base(os.Getenv("SHELL"))
 	}
 
-	switch shell {
-	case "bash":
-		fmt.Print(bashZshFunc)
-		fmt.Print(bashCompletions)
-	case "zsh":
-		fmt.Print(bashZshFunc)
-		fmt.Print(zshCompletions)
-	case "fish":
-		fmt.Print(fishFunc)
-	default:
-		if runtime.GOOS == "windows" {
-			errf("shell integration is not supported on Windows; use bash/zsh/fish via WSL")
-		} else {
-			errf("unknown shell %q : supported: bash, zsh, fish", shell)
-		}
+	if install {
+		return installShellIntegration(shell)
+	}
+
+	code, err := shellIntegrationCode(shell)
+	if err != nil {
+		errf("%v", err)
 		return 1
 	}
+	fmt.Print(code)
 	return 0
 }

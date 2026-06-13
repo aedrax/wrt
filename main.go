@@ -16,7 +16,7 @@ Commands:
   switch <branch>        Create/switch to a worktree (auto-cd)
   remove <branch>        Safely remove worktree, deinit submodules, delete merged branch
   list                   List all active worktrees
-  init   [shell]         Print shell integration code (bash, zsh, fish)
+  init   [shell]         Print shell integration code (bash, zsh, fish) or install with --install
   version                Print the installed wrt version
 
 Options:
