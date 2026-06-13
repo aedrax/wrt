@@ -45,6 +45,15 @@ Typical commands include:
 - `list` - show current worktrees
 - `remove` - delete a worktree
 
+For Example:
+
+```
+ wrt list                
+/data/projects/wrt                (bare)
+/data/projects/wrt/main           a8cbd32 [main]
+/data/projects/wrt/update-readme  0d2e204 [update-readme]
+```
+
 ## Notes
 
 This tool is intended to simplify worktree workflows without replacing Git. It is best used inside repositories where you already use Git worktrees.
