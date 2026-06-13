@@ -88,6 +88,8 @@ func main() {
 		rc = app.CmdRemove(args)
 	case "list":
 		rc = app.CmdList(args)
+	case "init":
+		rc = app.CmdInit(args)
 	case "version":
 		fmt.Println(version)
 	case "_branches":
